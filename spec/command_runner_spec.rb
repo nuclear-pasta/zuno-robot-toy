@@ -23,6 +23,28 @@ RSpec.describe CommandRunner do
         end
     end
 
+    describe "valid commands that cannot be carried out" do
+        it "discards everything before the first valid PLACE, an off-table PLACE included" do
+            text = "MOVE\nREPORT\nPLACE 5,5,NORTH\nMOVE\nREPORT\nPLACE 1,1,SOUTH\nREPORT"
+            expect(run(text)).to eq(["1,1,SOUTH"])
+        end
+
+        it "ignores an off-table PLACE once placed, and allows placing again" do
+            text = "PLACE 1,1,NORTH\nPLACE 9,9,SOUTH\nREPORT\nPLACE 3,3,WEST\nREPORT"
+            expect(run(text)).to eq(["1,1,NORTH", "3,3,WEST"])
+        end
+
+        it "ignores a MOVE that would fall off and keeps accepting commands" do
+            expect(run("PLACE 0,0,SOUTH\nMOVE\nREPORT\nLEFT\nMOVE\nREPORT")).to eq(["0,0,SOUTH", "1,0,EAST"])
+        end
+
+        it "uses a 5x5 table by default, or the table it is given" do
+            expect(run("PLACE 4,4,NORTH\nMOVE\nREPORT")).to eq(["4,4,NORTH"])
+            expect(run("PLACE 5,0,EAST\nREPORT")).to eq([])
+            expect(run("PLACE 2,0,EAST\nREPORT", table: Table.new(1, 1))).to eq([])
+        end
+    end
+
     describe "input" do
         it "accepts any case, extra whitespace and CRLF line endings" do
             expect(run("place 1,2,east\r\n\n  Move \nlEfT\nmove\nreport")).to eq(["2,3,NORTH"])
