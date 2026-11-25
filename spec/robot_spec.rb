@@ -65,6 +65,28 @@ RSpec.describe Robot do
             robot = robot_at(2, 3, "WEST")
             expect([robot.x, robot.y, robot.facing]).to eq([2, 3, "WEST"])
         end
+
+        it "refuses a position off the table, saying why" do
+            [[5, 0], [0, -1], [9, 9]].each do |x, y|
+                expect { robot_at(x, y, "NORTH") }
+                    .to raise_error(Robot::InvalidPlacement, /\Aposition #{x},#{y} is not on the table: /)
+            end
+        end
+
+        it "refuses a position that is not an integer" do
+            expect { robot_at(1.5, 0, "NORTH") }.to raise_error(Robot::InvalidPlacement, /x must be an integer, got 1\.5/)
+        end
+
+        it "refuses anything but the four direction names" do
+            ["UP", "north", nil, ""].each do |facing|
+                expect { robot_at(0, 0, facing) }.to raise_error(Robot::InvalidDirection, /is not one of NORTH, EAST/)
+            end
+        end
+
+        it "uses error classes that share Robot::Error" do
+            [Robot::InvalidPlacement, Robot::InvalidDirection, Robot::InvalidRotation]
+                .each { |error| expect(error).to be < Robot::Error }
+        end
     end
 
     describe "#report" do
