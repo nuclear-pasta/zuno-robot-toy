@@ -42,4 +42,33 @@ RSpec.describe CommandParser do
             expect(parse("PLACE 1,2,").args).to eq([1, 2, ""])
         end
     end
+
+    describe "unclear lines raise" do
+        it "UnknownCommand for an unknown word, extra arguments or a comment" do
+            ["JUMP", "MOVE 1", "PLACEMENT 1,2,NORTH"].each do |line|
+                expect { parse(line) }.to raise_error(CommandParser::UnknownCommand)
+            end
+        end
+
+        it "WrongAmountOfArgs for a PLACE without exactly three arguments" do
+            ["PLACE", "PLACE 1,2", "PLACE 1,2,NORTH,EXTRA", "PLACE 1,2,NORTH,", "PLACE ,1,2,NORTH", "PLACE MOVE"].each do |line|
+                expect { parse(line) }.to raise_error(CommandParser::WrongAmountOfArgs)
+            end
+        end
+
+        it "ArgumentNotAnInteger for a coordinate that is not plain digits" do
+            ["PLACE a,2,NORTH", "PLACE 1,b,NORTH", "PLACE 1.5,2,NORTH", "PLACE +1,0,NORTH", "PLACE 1_0,0,NORTH", "PLACE ,1,NORTH"]
+                .each { |line| expect { parse(line) }.to raise_error(CommandParser::ArgumentNotAnInteger) }
+        end
+    end
+
+    describe "error messages" do
+        it "explain the problem and quote the line as the user wrote it" do
+            expect { parse("PLACE 0,1 EAST") }
+                .to raise_error(CommandParser::WrongAmountOfArgs, 'PLACE expects X,Y,DIRECTION but got "0,1 EAST"')
+            expect { parse("place 1,b,north") }
+                .to raise_error(CommandParser::ArgumentNotAnInteger, 'PLACE X and Y must be integers, got "b"')
+            expect { parse("jump") }.to raise_error(CommandParser::UnknownCommand, 'unknown command "jump"')
+        end
+    end
 end
