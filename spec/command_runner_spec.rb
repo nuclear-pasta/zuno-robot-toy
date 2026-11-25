@@ -9,6 +9,21 @@ RSpec.describe CommandRunner do
         output.string.lines.map(&:chomp)
     end
 
+    # Runs the input and returns the lines written to the given stream.
+    def lines_written_to(stream, input)
+        io = StringIO.new
+        described_class.new(input, output: StringIO.new, stream => io).run
+        io.string.lines.map(&:chomp)
+    end
+
+    def log_for(input)
+        lines_written_to(:log, input)
+    end
+
+    def warnings_for(input)
+        lines_written_to(:warnings, input)
+    end
+
     describe "example scenarios" do
         it "A: basic movement" do
             expect(run("PLACE 0,0,NORTH\nMOVE\nREPORT")).to eq(["0,1,NORTH"])
@@ -42,6 +57,50 @@ RSpec.describe CommandRunner do
             expect(run("PLACE 4,4,NORTH\nMOVE\nREPORT")).to eq(["4,4,NORTH"])
             expect(run("PLACE 5,0,EAST\nREPORT")).to eq([])
             expect(run("PLACE 2,0,EAST\nREPORT", table: Table.new(1, 1))).to eq([])
+        end
+    end
+
+    describe "invalid lines are skipped with a warning" do
+        it "keeps going and never moves the robot because of them" do
+            text = "PLACE 2,2,NORTH\nPLACE 1,2,UP\nJUMP\nMOVE 1\nPLACE a,2,NORTH\nPLACE 1,2\nMOVE\nREPORT"
+            expect(run(text)).to eq(["2,3,NORTH"])
+        end
+
+        it "warns with the line number and the reason, counting blank lines" do
+            text = "\nJUMP\nPLACE 1,2,UP\nPLACE 1,2\nPLACE a,2,NORTH"
+            expect(warnings_for(text)).to eq([
+                %(warning: line 2: ignored (unknown command "JUMP")),
+                %(warning: line 3: ignored ("UP" is not one of NORTH, EAST, SOUTH, WEST)),
+                %(warning: line 4: ignored (PLACE expects X,Y,DIRECTION but got "1,2")),
+                %(warning: line 5: ignored (PLACE X and Y must be integers, got "a"))
+            ])
+        end
+
+        it "does not warn about valid commands that were discarded, or blank lines" do
+            expect(warnings_for("MOVE\n\nPLACE 9,9,NORTH\nPLACE 0,0,SOUTH\nMOVE\nREPORT")).to eq([])
+        end
+    end
+
+    describe "log" do
+        it "explains each kind of discarded command, with its line number" do
+            text = "MOVE\nPLACE 9,9,NORTH\nPLACE 0,0,SOUTH\nMOVE"
+            expect(log_for(text)).to eq([
+                "line 1: ignored (robot is not placed)",
+                "line 2: ignored (position 9,9 is not on the table: x must be between 0 and 4, y must be between 0 and 4)",
+                "line 4: ignored (would fall off the table)"
+            ])
+        end
+
+        it "stays empty for valid commands and for invalid lines, which are warnings" do
+            expect(log_for("PLACE 0,0,NORTH\nLEFT\nPLACE 1,1,EAST\nREPORT\nJUMP")).to eq([])
+        end
+
+        it "keeps warnings and the log apart" do
+            warnings = StringIO.new
+            log = StringIO.new
+            described_class.new("MOVE\nJUMP\nPLACE 0,0,NORTH", output: StringIO.new, warnings: warnings, log: log).run
+            expect(warnings.string).to eq(%(warning: line 2: ignored (unknown command "JUMP")\n))
+            expect(log.string).to eq("line 1: ignored (robot is not placed)\n")
         end
     end
 
