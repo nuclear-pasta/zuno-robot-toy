@@ -31,6 +31,35 @@ RSpec.describe Robot do
         end
     end
 
+    describe "#rotate" do
+        it "turns LEFT counter-clockwise and RIGHT clockwise" do
+            { "NORTH" => "WEST", "WEST" => "SOUTH", "SOUTH" => "EAST", "EAST" => "NORTH" }.each do |from, to|
+                robot = robot_at(0, 0, from)
+                robot.rotate("LEFT")
+                expect(robot.facing).to eq(to)
+            end
+            { "NORTH" => "EAST", "EAST" => "SOUTH", "SOUTH" => "WEST", "WEST" => "NORTH" }.each do |from, to|
+                robot = robot_at(0, 0, from)
+                robot.rotate("RIGHT")
+                expect(robot.facing).to eq(to)
+            end
+        end
+
+        it "does not change position" do
+            robot = robot_at(1, 2, "NORTH")
+            robot.rotate("LEFT")
+            expect([robot.x, robot.y]).to eq([1, 2])
+        end
+
+        it "refuses an unknown rotation and keeps its facing" do
+            robot = robot_at(0, 0, "NORTH")
+            ["BACK", "left", nil].each do |rotation|
+                expect { robot.rotate(rotation) }.to raise_error(Robot::InvalidRotation, /is not one of RIGHT, LEFT/)
+            end
+            expect(robot.facing).to eq("NORTH")
+        end
+    end
+
     describe "#initialize" do
         it "starts at the given position and facing" do
             robot = robot_at(2, 3, "WEST")
