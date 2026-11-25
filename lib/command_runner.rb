@@ -38,12 +38,15 @@ class CommandRunner
 
     def execute(command)
         return place(*command.args) if command.command == "PLACE"
+        return unless robot
 
         case command.command
         when "MOVE" then robot.move
         when "REPORT" then report
         when *Directions::ROTATIONS then robot.rotate(command.command)
         end
+    rescue Robot::InvalidPlacement
+        nil
     end
 
     def place(x, y, facing)
