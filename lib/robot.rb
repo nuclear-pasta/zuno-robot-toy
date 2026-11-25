@@ -1,13 +1,23 @@
 require_relative "./table"
 require_relative "./directions"
 
+# Can only exist in a valid state, whoever calls it.
 class Robot
     class Error < StandardError; end
+    class InvalidPlacement < Error; end
+    class InvalidDirection < Error; end
     class InvalidRotation < Error; end
 
     attr_reader :x, :y, :facing, :table
 
     def initialize(x, y, facing, table)
+        unless Directions.valid?(facing)
+            raise InvalidDirection, "#{facing.inspect} is not one of #{Directions::DIRECTIONS.join(", ")}"
+        end
+
+        problem = table.position_problem(x, y)
+        raise InvalidPlacement, problem if problem
+
         @x = x
         @y = y
         @facing = facing

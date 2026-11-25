@@ -24,4 +24,8 @@ module Directions
     }.freeze
 
     ROTATIONS = ROTATION_TO_STEP.keys.freeze
+
+    def self.valid?(direction)
+        DIRECTIONS.include?(direction)
+    end
 end
