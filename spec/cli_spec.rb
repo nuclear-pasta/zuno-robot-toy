@@ -43,4 +43,33 @@ RSpec.describe CLI do
             expect($stderr).to have_received(:puts).with(%(warning: line 3: ignored (unknown command "JUMP")))
         end
     end
+
+    describe "--verbose" do
+        it "also logs discarded commands to stderr, keeping reports on stdout" do
+            stdin_lines("MOVE", "JUMP", "PLACE 0,0,NORTH", "REPORT")
+            expect(run_cli("-v")).to eq(0)
+            expect($stdout).to have_received(:puts).with("0,0,NORTH")
+            expect($stderr).to have_received(:puts).with("line 1: ignored (robot is not placed)")
+            expect($stderr).to have_received(:puts).with(%(warning: line 2: ignored (unknown command "JUMP")))
+        end
+
+        it "logs nothing without the flag, and is accepted after the file" do
+            run_cli(fixture("early_commands_then_place.txt"))
+            expect($stderr).not_to have_received(:puts)
+
+            run_cli(fixture("early_commands_then_place.txt"), "--verbose")
+            expect($stderr).to have_received(:puts).with("line 1: ignored (robot is not placed)")
+        end
+    end
+
+    describe "--help" do
+        it "prints usage to stdout with -h or --help, exits 0 and runs nothing" do
+            stdin_lines("PLACE 0,0,NORTH", "REPORT")
+            %w[-h --help].each { |flag| expect(run_cli(flag)).to eq(0) }
+            expect($stdout).to have_received(:puts)
+                .with(a_string_including("Usage: ruby main.rb", "--verbose", "--help")).twice
+            expect($stdout).not_to have_received(:puts).with("0,0,NORTH")
+            expect($stderr).not_to have_received(:puts)
+        end
+    end
 end
