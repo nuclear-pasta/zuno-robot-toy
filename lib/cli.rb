@@ -1,6 +1,7 @@
 require "optparse"
 require_relative "./command_runner"
 
+# #run returns the exit status: 0 success, 1 unreadable input, 2 bad usage.
 class CLI
     PROGRAM = "main.rb".freeze
 
@@ -12,9 +13,15 @@ class CLI
     def run
         files = parser.parse(argv)
         return help if options[:help]
+        return usage_error("too many arguments") if files.size > 1
 
         execute(files.first)
         0
+    rescue OptionParser::ParseError => e
+        usage_error(e.message)
+    rescue SystemCallError => e
+        $stderr.puts("Error: #{e.message}")
+        1
     end
 
     private
@@ -46,5 +53,10 @@ class CLI
     def help
         $stdout.puts(parser.help)
         0
+    end
+
+    def usage_error(message)
+        $stderr.puts("Error: #{message}", parser.help)
+        2
     end
 end
