@@ -72,4 +72,26 @@ RSpec.describe CLI do
             expect($stderr).not_to have_received(:puts)
         end
     end
+
+    describe "usage errors (exit 2)" do
+        it "rejects an unknown option and more than one file" do
+            expect(run_cli("--bogus")).to eq(2)
+            expect($stderr).to have_received(:puts)
+                .with(a_string_including("invalid option: --bogus"), a_string_including("Usage:"))
+
+            expect(run_cli("a.txt", "b.txt")).to eq(2)
+            expect($stderr).to have_received(:puts)
+                .with(a_string_including("too many arguments"), a_string_including("Usage:"))
+        end
+    end
+
+    describe "unreadable input (exit 1)" do
+        it "reports a missing file or a directory without a stack trace" do
+            expect(run_cli("/nope/missing.txt")).to eq(1)
+            expect($stderr).to have_received(:puts).with(/\AError: No such file or directory/)
+
+            expect(run_cli(fixture(""))).to eq(1)
+            expect($stderr).to have_received(:puts).with(/\AError: Is a directory/)
+        end
+    end
 end
