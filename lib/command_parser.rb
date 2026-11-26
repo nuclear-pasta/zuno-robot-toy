@@ -5,6 +5,7 @@ class CommandParser
     class WrongAmountOfArgs < Error; end
     class ArgumentNotAnInteger < Error; end
     class UnknownCommand < Error; end
+    class InvalidEncoding < Error; end
 
     SIMPLE = (%w[MOVE REPORT] + Directions::ROTATIONS).freeze
     PLACE = "PLACE"
@@ -17,6 +18,7 @@ class CommandParser
     end
 
     def parse_command
+        validate_encoding
         if command.empty?
             nil
         elsif SIMPLE.include?(command.upcase)
@@ -32,8 +34,15 @@ class CommandParser
 
     attr_reader :line
 
+    # Lazy: String#strip raises on invalid UTF-8, so the encoding check runs first.
     def command
         @command ||= line.strip
+    end
+
+    def validate_encoding
+        return if line.valid_encoding?
+
+        raise InvalidEncoding, "not valid UTF-8: #{line.b.strip.inspect}; re-save the file as UTF-8"
     end
 
     def parse_place
