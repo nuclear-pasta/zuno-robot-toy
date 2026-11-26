@@ -60,6 +60,18 @@ RSpec.describe CommandParser do
             ["PLACE a,2,NORTH", "PLACE 1,b,NORTH", "PLACE 1.5,2,NORTH", "PLACE +1,0,NORTH", "PLACE 1_0,0,NORTH", "PLACE ,1,NORTH"]
                 .each { |line| expect { parse(line) }.to raise_error(CommandParser::ArgumentNotAnInteger) }
         end
+
+        it "InvalidEncoding for a line that is not valid UTF-8, wherever the bad byte is" do
+            expect { parse("\xFF\xFE".b) }
+                .to raise_error(CommandParser::InvalidEncoding, 'not valid UTF-8: "\\xFF\\xFE"; re-save the file as UTF-8')
+            expect { parse("MOVE caf\xE9".b) }.to raise_error(CommandParser::InvalidEncoding)
+        end
+
+        it "shares one base error class" do
+            [CommandParser::WrongAmountOfArgs, CommandParser::ArgumentNotAnInteger,
+             CommandParser::UnknownCommand, CommandParser::InvalidEncoding]
+                .each { |error| expect(error).to be < CommandParser::Error }
+        end
     end
 
     describe "error messages" do
@@ -70,5 +82,12 @@ RSpec.describe CommandParser do
                 .to raise_error(CommandParser::ArgumentNotAnInteger, 'PLACE X and Y must be integers, got "b"')
             expect { parse("jump") }.to raise_error(CommandParser::UnknownCommand, 'unknown command "jump"')
         end
+    end
+
+    it "reads a String in any labelled encoding as UTF-8, without changing it" do
+        line = +"PLACE 0,0,NORTH"
+        expect(parse(line.b).args).to eq([0, 0, "NORTH"])
+        expect(parse(line.encode("US-ASCII")).args).to eq([0, 0, "NORTH"])
+        expect(line.encoding).to eq(Encoding::UTF_8)
     end
 end

@@ -1,4 +1,5 @@
 require "stringio"
+require "tempfile"
 require_relative "../lib/command_runner"
 
 RSpec.describe CommandRunner do
@@ -76,6 +77,13 @@ RSpec.describe CommandRunner do
             ])
         end
 
+        it "warns about a line that is not valid UTF-8, instead of crashing" do
+            text = "PLACE 0,0,NORTH\n\xFF\xFE\nMOVE\nREPORT\n".b
+            expect(run(text)).to eq(["0,1,NORTH"])
+            expect(warnings_for(text).first)
+                .to match(/\Awarning: line 2: ignored \(not valid UTF-8: .*re-save the file as UTF-8\)\z/)
+        end
+
         it "does not warn about valid commands that were discarded, or blank lines" do
             expect(warnings_for("MOVE\n\nPLACE 9,9,NORTH\nPLACE 0,0,SOUTH\nMOVE\nREPORT")).to eq([])
         end
@@ -107,6 +115,17 @@ RSpec.describe CommandRunner do
     describe "input" do
         it "accepts any case, extra whitespace and CRLF line endings" do
             expect(run("place 1,2,east\r\n\n  Move \nlEfT\nmove\nreport")).to eq(["2,3,NORTH"])
+        end
+
+        it "reads a file, and reads it as UTF-8 whatever the system locale says" do
+            Tempfile.create("commands") do |file|
+                file.write("PLACE 0,0,NORTH\nJUMP café\nREPORT\n")
+                file.flush
+                File.open(file.path, "r:US-ASCII:US-ASCII") { |io| expect(run(io)).to eq(["0,0,NORTH"]) }
+                File.open(file.path, "r:US-ASCII:US-ASCII") do |io|
+                    expect(warnings_for(io)).to eq([%(warning: line 2: ignored (unknown command "JUMP café"))])
+                end
+            end
         end
 
         it "streams: reads one line at a time from any object with each_line" do
