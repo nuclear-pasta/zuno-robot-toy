@@ -1,18 +1,35 @@
+require "optparse"
 require_relative "./command_runner"
 
 class CLI
+    PROGRAM = "main.rb".freeze
+
     def initialize(argv)
         @argv = argv.dup
+        @options = { verbose: false, help: false }
     end
 
     def run
-        execute(argv.first)
+        files = parser.parse(argv)
+        return help if options[:help]
+
+        execute(files.first)
         0
     end
 
     private
 
-    attr_reader :argv
+    attr_reader :argv, :options
+
+    def parser
+        @parser ||= OptionParser.new do |opts|
+            opts.banner = "Usage: ruby #{PROGRAM} [options] [FILE]"
+            opts.separator("Reads commands from FILE, or from standard input when FILE is omitted.")
+            opts.separator("")
+            opts.on("-v", "--verbose", "Also log discarded commands to stderr") { options[:verbose] = true }
+            opts.on("-h", "--help", "Show this help") { options[:help] = true }
+        end
+    end
 
     def execute(path)
         if path
@@ -23,6 +40,11 @@ class CLI
     end
 
     def runner_for(input)
-        CommandRunner.new(input, output: $stdout, warnings: $stderr)
+        CommandRunner.new(input, output: $stdout, warnings: $stderr, log: ($stderr if options[:verbose]))
+    end
+
+    def help
+        $stdout.puts(parser.help)
+        0
     end
 end
